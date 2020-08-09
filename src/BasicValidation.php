@@ -2,6 +2,7 @@
 
 namespace Hewison;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
@@ -10,30 +11,23 @@ use Illuminate\Validation\ValidationException;
 trait BasicValidation
 {
     /**
-     * Laravel validator instance
+     * Laravel validator instance.
+     *
      * @var \Illuminate\Validation\Validator
      */
     private $validator;
 
     /**
-     * Validation is enabled
+     * Determine validation status.
+     *
+     * @var boolean
      */
     protected $validation_enabled = true;
 
     /**
-     * Laravel validation rules
-     * @var array
-     */
-    public $rules = [];
-
-    /**
-     * Laravel validation messages
-     * @var array
-     */
-    public $messages = [];
-
-    /**
      * Trait boot method
+     *
+     * @return void
      */
     public static function bootBasicValidation() : void
     {
@@ -45,13 +39,14 @@ trait BasicValidation
     }
 
     /**
-     * Check validity
+     * Check validity.
+     *
      * @return bool
-     * @throws \Exception
+     * @throws Exception
      */
     public function isValid() : bool
     {
-        $this->resolveRules();
+        $this->setRules();
 
         if (!$this->hasRules()) {
             return true;
@@ -68,69 +63,92 @@ trait BasicValidation
     }
 
     /**
-     * Get the validator instance
+     * Get the validator instance.
+     *
      * @return \Illuminate\Validation\Validator
      */
     protected function makeValidator() : \Illuminate\Validation\Validator
     {
         return Validator::make(
             static::toArray(),
-            $this->rules,
+            $this->getRules(),
             $this->hasCustomMessages() ? $this->messages : []
         );
     }
 
     /**
-     * Determine if a model has rules
+     * Determine if a model has rules.
+     *
      * @return bool
      */
     protected function hasRules() : bool
     {
-        return (bool) (is_array($this->rules) && count($this->rules));
+        return (bool) count($this->getRules());
     }
 
     /**
-     * Determines if a rules method is defined
+     * Determines if a rules method has been defined.
+     *
      * @return bool
      */
-    private function hasValidationRulesMethod() : bool
+    private function hasValidationRulesMethod(): bool
     {
         return method_exists($this, 'validationRules');
     }
 
     /**
-     * Resolves the validation rules from the model
+     * Resolves the validation rules from the model.
+     *
      * @return void
      */
-    private function resolveRules() : void
+    private function setRules(): void
     {
-        $this->rules = !$this->hasValidationRulesMethod() ? $this->rules : static::validationRules();
+        if ($this->hasValidationRulesMethod()) {
+            $this->rules = static::validationRules();
+        }
+
+        if ($this->rules === null) {
+            $this->rules = [];
+        }
+    }
+
+    /**
+     * Gets the current list of rules required for validation.
+     *
+     * @return array
+     */
+    public function getRules(): array
+    {
+        return isset($this->rules) && is_array($this->rules) ? $this->rules : [];
     }
 
     /**
      * Informs if there are custom messages.
+     *
      * @return bool
      */
-    public function hasCustomMessages() : bool
+    public function hasCustomMessages(): bool
     {
         return (bool) (is_array($this->messages) && count($this->messages));
     }
 
     /**
-     * Returns an array of validation errors
+     * Returns an array of validation errors.
+     *
      * @return \Illuminate\Validation\Validator
      */
-    public function getValidator() : \Illuminate\Validation\Validator
+    public function getValidator(): \Illuminate\Validation\Validator
     {
         return $this->validator;
     }
 
     /**
-     * Removes rules from the validator
+     * Removes rules from the validator.
+     *
      * @param array|string $rule
      * @return $this
      */
-    public function removeRules($rule) : self
+    public function removeRules($rule): self
     {
         if (is_array($rule)) {
             foreach($rule as $r) {
@@ -144,30 +162,34 @@ trait BasicValidation
     }
 
     /**
-     * Remove a specific rule if in rules array
+     * Remove a specific rule if in rules array.
+     *
      * @param string $rule
      */
-    private function removeRule(string $rule) : void
+    private function removeRule(string $rule): void
     {
         if ($this->hasRule((string) $rule)) {
-            Arr::forget($this->rules, $rule);
+            Arr::forget($this->getRules(), $rule);
         }
     }
 
     /**
+     * Determines if a rule exists.
+     *
      * @param string $rule
      * @return bool
      */
-    private function hasRule(string $rule) : bool
+    private function hasRule(string $rule): bool
     {
-        return Arr::has($this->rules, $rule);
+        return Arr::has($this->getRules(), $rule);
     }
 
     /**
-     * Allows inline disabling of validation
+     * Allows inline disabling of validation.
+     *
      * @return $this
      */
-    public function disableValidation() : self
+    public function disableValidation(): self
     {
         $this->validation_enabled = false;
 
@@ -175,10 +197,11 @@ trait BasicValidation
     }
 
     /**
-     * Allows inline disabling of validation
+     * Allows inline enabling of validation.
+     *
      * @return $this
      */
-    public function enableValidation() : self
+    public function enableValidation(): self
     {
         $this->validation_enabled = true;
 
